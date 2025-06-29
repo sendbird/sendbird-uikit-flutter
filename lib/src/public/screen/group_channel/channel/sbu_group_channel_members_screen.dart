@@ -61,20 +61,6 @@ class SBUGroupChannelMembersScreenState
         textColorType: SBUTextColorType.text01,
       ),
       hasBackKey: true,
-      iconButton: SBUIconButtonComponent(
-        iconButtonSize: 32,
-        icon: SBUIconComponent(
-          iconSize: 24,
-          iconData: SBUIcons.plus,
-          iconColor:
-              isLightTheme ? SBUColors.primaryMain : SBUColors.primaryLight,
-        ),
-        onButtonClicked: () {
-          if (channel != null && widget.onInviteButtonClicked != null) {
-            widget.onInviteButtonClicked!(channel);
-          }
-        },
-      ),
     );
 
     final sortedMembers =
@@ -106,7 +92,7 @@ class SBUGroupChannelMembersScreenState
                               : SBUColors.background600,
                           channel: channel,
                           user: sortedMembers[i],
-                          canOperate: myMember?.role == Role.operator,
+                          canOperate: false,
                           moderationType: SBUModerationType.members,
                         );
                       },
