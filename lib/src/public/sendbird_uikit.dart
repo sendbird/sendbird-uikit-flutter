@@ -21,7 +21,7 @@ import 'package:sendbird_uikit/src/internal/utils/sbu_reply_manager.dart';
 /// SendbirdUIKit
 class SendbirdUIKit {
   /// UIKit version
-  static const version = '1.2.0';
+  static const version = '1.2.1';
 
   SendbirdUIKit._();
 

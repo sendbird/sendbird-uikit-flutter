@@ -3,6 +3,7 @@
 import 'dart:convert';
 
 import 'package:sendbird_chat_sdk/sendbird_chat_sdk.dart';
+import 'package:sendbird_uikit/sendbird_uikit.dart';
 import 'package:sendbird_uikit/src/internal/utils/sbu_emoji_cache.dart';
 import 'package:sendbird_uikit/src/internal/utils/sbu_thumbnail_cache.dart';
 import 'package:sendbird_uikit/src/internal/utils/sbu_uikit_configutation_cache.dart';
@@ -56,8 +57,8 @@ class SBUPreferences {
     return _prefs.getBool(prefDarkTheme) ?? false;
   }
 
-  Future<bool> removeDarkTheme() async {
-    return await _prefs.remove(prefDarkTheme);
+  Future<void> removeDarkTheme() async {
+    await SBUThemeProvider().setTheme(SBUTheme.light);
   }
 
   // Push notifications
