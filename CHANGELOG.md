@@ -1,3 +1,8 @@
+## v1.2.1 (Nov 25, 2025)
+
+### Improvements
+- Fixed a bug related to initial theme setting
+
 ## v1.2.0 (Oct 29, 2025)
 
 ### Features
