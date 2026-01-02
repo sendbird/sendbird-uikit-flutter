@@ -6,6 +6,7 @@ import 'package:sendbird_chat_sdk/sendbird_chat_sdk.dart';
 import 'package:sendbird_uikit/sendbird_uikit.dart';
 import 'package:sendbird_uikit/src/internal/utils/sbu_emoji_cache.dart';
 import 'package:sendbird_uikit/src/internal/utils/sbu_thumbnail_cache.dart';
+import 'package:sendbird_uikit/src/internal/utils/sbu_thumbnail_manager.dart';
 import 'package:sendbird_uikit/src/internal/utils/sbu_uikit_configutation_cache.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -18,6 +19,8 @@ class SBUPreferences {
   static const String prefConfigurationLastUpdatedAt =
       'prefConfigurationLastUpdatedAt';
   static const String prefSBUConfigurationCaches = 'prefSBUConfigurationCaches';
+
+  static const int maxThumbnailCacheCount = 200; // Check
 
   SBUPreferences._();
 
@@ -95,7 +98,12 @@ class SBUPreferences {
     if (caches != null) {
       final decode = jsonDecode(caches);
       if (decode is List<dynamic>) {
-        for (final cache in decode) {
+        // Load up to maxThumbnailCacheCount items, prioritizing the most recent
+        final limitedCaches = decode.length > maxThumbnailCacheCount
+            ? decode.sublist(decode.length - maxThumbnailCacheCount)
+            : decode;
+
+        for (final cache in limitedCaches) {
           _thumbnailCaches.add(SBUThumbnailCache.fromJson(cache));
         }
       }
@@ -103,45 +111,61 @@ class SBUPreferences {
     return _thumbnailCaches;
   }
 
-  Future<SBUThumbnailCache?> addThumbnailCache(
-    FileMessage message,
-    String filePath,
-  ) async {
-    final cacheKey = (message.messageId > 0)
-        ? message.messageId.toString()
-        : message.requestId;
+  Future<SBUThumbnailCache?> addThumbnailCache({
+    required bool isSucceededMessage,
+    required String? requestId,
+    required int messageId,
+    required int? multipleFileIndex,
+    required String filePath,
+  }) async {
+    String? cacheKey = SBUThumbnailManager.getCacheKey(
+      isSucceededMessage: isSucceededMessage,
+      requestId: requestId,
+      messageId: messageId,
+      multipleFileIndex: multipleFileIndex,
+    );
 
     if (cacheKey != null && cacheKey.isNotEmpty) {
+      // Check if cache already exists
+      final existingIndex =
+          _thumbnailCaches.indexWhere((cache) => cache.id == cacheKey);
+      if (existingIndex != -1) {
+        _thumbnailCaches.removeAt(existingIndex);
+      }
+
       final cache = SBUThumbnailCache(id: cacheKey, path: filePath);
       _thumbnailCaches.add(cache);
-      final encode = jsonEncode(_thumbnailCaches);
-      final result = await _prefs.setString(prefSBUThumbnailCaches, encode);
-      if (result) {
-        return cache;
+
+      // Remove oldest caches if exceeding max count
+      while (_thumbnailCaches.length > maxThumbnailCacheCount) {
+        _thumbnailCaches.removeAt(0);
       }
+
+      final encode = jsonEncode(_thumbnailCaches);
+      _prefs.setString(prefSBUThumbnailCaches, encode); // No await
+      return cache;
     }
     return null;
   }
 
-  SBUThumbnailCache? getThumbnailCache(FileMessage message) {
-    if (message.requestId != null && message.requestId!.isNotEmpty) {
-      final cacheKey = message.requestId;
-      for (final cache in _thumbnailCaches) {
-        if (cache.id == cacheKey) {
-          return cache;
-        }
+  SBUThumbnailCache? getThumbnailCache({
+    required bool isSucceededMessage,
+    required String? requestId,
+    required int messageId,
+    required int? multipleFileIndex,
+  }) {
+    String? cacheKey = SBUThumbnailManager.getCacheKey(
+      isSucceededMessage: isSucceededMessage,
+      requestId: requestId,
+      messageId: messageId,
+      multipleFileIndex: multipleFileIndex,
+    );
+
+    for (final cache in _thumbnailCaches) {
+      if (cacheKey == cache.id) {
+        return cache;
       }
     }
-
-    if (message.messageId > 0) {
-      final cacheKey = message.messageId.toString();
-      for (final cache in _thumbnailCaches) {
-        if (cache.id == cacheKey) {
-          return cache;
-        }
-      }
-    }
-
     return null;
   }
 

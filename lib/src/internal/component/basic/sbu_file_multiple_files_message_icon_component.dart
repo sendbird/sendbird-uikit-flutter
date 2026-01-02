@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Sendbird, Inc. All rights reserved.
+// Copyright (c) 2025 Sendbird, Inc. All rights reserved.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -10,36 +10,42 @@ import 'package:sendbird_uikit/src/public/resource/sbu_colors.dart';
 import 'package:sendbird_uikit/src/public/resource/sbu_icons.dart';
 import 'package:sendbird_uikit/src/public/resource/sbu_theme_provider.dart';
 
-class SBUFileMessageIconComponent extends SBUStatefulComponent {
+class SBUMultipleFilesMessageIconComponent extends SBUStatefulComponent {
   final double iconSize;
-  final FileMessage fileMessage;
+  final MultipleFilesMessage multipleFilesMessage;
 
-  const SBUFileMessageIconComponent({
+  const SBUMultipleFilesMessageIconComponent({
     required this.iconSize,
-    required this.fileMessage,
+    required this.multipleFilesMessage,
     super.key,
   });
 
   @override
-  State<StatefulWidget> createState() => SBUFileMessageIconComponentState();
+  State<StatefulWidget> createState() =>
+      SBUMultipleFilesMessageIconComponentState();
 }
 
-class SBUFileMessageIconComponentState
-    extends State<SBUFileMessageIconComponent> {
+class SBUMultipleFilesMessageIconComponentState
+    extends State<SBUMultipleFilesMessageIconComponent> {
   @override
   Widget build(BuildContext context) {
     final isLightTheme = context.watch<SBUThemeProvider>().isLight();
 
     final iconSize = widget.iconSize;
-    final fileMessage = widget.fileMessage;
+    final multipleFilesMessage = widget.multipleFilesMessage;
 
-    final fileType = widget.getFileType(fileMessage.type);
+    if (multipleFilesMessage.files.isEmpty) {
+      return Container();
+    }
+
+    const index = 0;
+    final fileType = widget.getFileType(multipleFilesMessage.files[index].type);
 
     switch (fileType) {
       case SBUFileType.image:
       case SBUFileType.video:
         final isReplyMessageToChannel =
-            widget.isReplyMessageToChannel(fileMessage);
+            widget.isReplyMessageToChannel(multipleFilesMessage);
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(8),
@@ -47,15 +53,15 @@ class SBUFileMessageIconComponentState
             width: iconSize,
             height: iconSize,
             child: SBUThumbnailManager().getThumbnailWidget(
-                  isSucceededMessage:
-                      fileMessage.sendingStatus == SendingStatus.succeeded,
-                  requestId: fileMessage.requestId,
-                  messageId: fileMessage.messageId,
+                  isSucceededMessage: multipleFilesMessage.sendingStatus ==
+                      SendingStatus.succeeded,
+                  requestId: multipleFilesMessage.requestId,
+                  messageId: multipleFilesMessage.messageId,
                   multipleFileIndex: null,
-                  thumbnails: fileMessage.thumbnails,
-                  mimeType: fileMessage.type,
-                  secureUrl: fileMessage.secureUrl,
-                  filePath: fileMessage.file?.path,
+                  thumbnails: multipleFilesMessage.files[index].thumbnails,
+                  mimeType: multipleFilesMessage.files[index].type,
+                  secureUrl: multipleFilesMessage.files[index].secureUrl,
+                  filePath: multipleFilesMessage.files[index].file?.path,
                   fileType: fileType,
                   isLightTheme: isLightTheme,
                   addGifIcon: false,

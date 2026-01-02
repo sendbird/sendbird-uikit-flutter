@@ -96,133 +96,137 @@ class SBUBottomSheetReactionDetailsComponentState
 
     final reactions = widget.message!.reactions!;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isLightTheme ? SBUColors.background50 : SBUColors.background500,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
-        ),
-      ),
+    return SafeArea(
       child: Container(
-        height: (isExtendedList
-            ? MediaQuery.of(context).size.height - 48
-            : 276), // Check
-        padding: const EdgeInsets.only(top: 16),
-        child: DefaultTabController(
-          length: tabCount,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
-                alignment: Alignment.bottomLeft,
-                children: [
-                  Container(
-                    height: 1,
-                    color: isLightTheme
-                        ? SBUColors.lightThemeTextDisabled
-                        : SBUColors.darkThemeTextDisabled,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: TabBar(
-                      controller: tabController,
-                      isScrollable: true,
-                      padding: EdgeInsets.zero,
-                      labelPadding: EdgeInsets.zero,
-                      indicatorWeight: 3,
-                      indicatorColor: isLightTheme
-                          ? SBUColors.primaryMain
-                          : SBUColors.primaryLight,
-                      indicatorPadding:
-                          const EdgeInsets.symmetric(horizontal: 8),
-                      indicatorSize: TabBarIndicatorSize.label,
-                      tabAlignment: TabAlignment.start,
-                      tabs: List<Widget>.generate(
-                        tabCount,
-                        (index) {
-                          final reaction = reactions[index];
-
-                          final emojiUrl =
-                              SBUReactionManager().getEmoji(reaction.key)?.url;
-                          if (emojiUrl == null) {
-                            return Container(); // Check
-                          }
-
-                          return Tab(
-                            height: 41,
-                            child: Container(
-                              margin: const EdgeInsets.only(
-                                  left: 8, right: 8, bottom: 13),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox(
-                                    width: 28,
-                                    height: 28,
-                                    child: SBUImageComponent(
-                                      imageUrl: emojiUrl,
-                                      cacheKey: reaction.key,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  SBUTextComponent(
-                                    text:
-                                        '${reaction.userIds.length > 99 ? '99+' : reaction.userIds.length}',
-                                    textType: SBUTextType.button,
-                                    textColorType:
-                                        (selectedReaction.key == reaction.key)
-                                            ? SBUTextColorType.primary
-                                            : SBUTextColorType.text03,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ).toList(),
+        decoration: BoxDecoration(
+          color:
+              isLightTheme ? SBUColors.background50 : SBUColors.background500,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(8),
+            topRight: Radius.circular(8),
+          ),
+        ),
+        child: Container(
+          height: (isExtendedList
+              ? MediaQuery.of(context).size.height - 48
+              : 276), // Check
+          padding: const EdgeInsets.only(top: 16),
+          child: DefaultTabController(
+            length: tabCount,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Stack(
+                  alignment: Alignment.bottomLeft,
+                  children: [
+                    Container(
+                      height: 1,
+                      color: isLightTheme
+                          ? SBUColors.lightThemeTextDisabled
+                          : SBUColors.darkThemeTextDisabled,
                     ),
-                  ),
-                ],
-              ),
-              Expanded(
-                child: TabBarView(
-                  controller: tabController,
-                  children: List<Widget>.generate(
-                    tabCount,
-                    (index) {
-                      final reaction = reactions[index];
-                      return SBUScrollBarComponent(
-                        controller: scrollController,
-                        child: ListView.builder(
-                          controller: scrollController,
-                          itemCount: reaction.userIds.length,
-                          itemBuilder: (context, i) {
-                            if (channel is GroupChannel) {
-                              final member = channel.members.firstWhereOrNull(
-                                (member) =>
-                                    (member.userId == reaction.userIds[i]),
-                              );
-                              if (member != null) {
-                                return SBUReactionMemberListItemComponent(
-                                  width: double.maxFinite,
-                                  height: 48,
-                                  backgroundColor: isLightTheme
-                                      ? SBUColors.background50
-                                      : SBUColors.background500,
-                                  user: member,
-                                );
-                              }
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: TabBar(
+                        controller: tabController,
+                        isScrollable: true,
+                        padding: EdgeInsets.zero,
+                        labelPadding: EdgeInsets.zero,
+                        indicatorWeight: 3,
+                        indicatorColor: isLightTheme
+                            ? SBUColors.primaryMain
+                            : SBUColors.primaryLight,
+                        indicatorPadding:
+                            const EdgeInsets.symmetric(horizontal: 8),
+                        indicatorSize: TabBarIndicatorSize.label,
+                        tabAlignment: TabAlignment.start,
+                        tabs: List<Widget>.generate(
+                          tabCount,
+                          (index) {
+                            final reaction = reactions[index];
+
+                            final emojiUrl = SBUReactionManager()
+                                .getEmoji(reaction.key)
+                                ?.url;
+                            if (emojiUrl == null) {
+                              return Container(); // Check
                             }
-                            return null;
+
+                            return Tab(
+                              height: 41,
+                              child: Container(
+                                margin: const EdgeInsets.only(
+                                    left: 8, right: 8, bottom: 13),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(
+                                      width: 28,
+                                      height: 28,
+                                      child: SBUImageComponent(
+                                        imageUrl: emojiUrl,
+                                        cacheKey: reaction.key,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    SBUTextComponent(
+                                      text:
+                                          '${reaction.userIds.length > 99 ? '99+' : reaction.userIds.length}',
+                                      textType: SBUTextType.button,
+                                      textColorType:
+                                          (selectedReaction.key == reaction.key)
+                                              ? SBUTextColorType.primary
+                                              : SBUTextColorType.text03,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
                           },
-                        ),
-                      );
-                    },
-                  ).toList(),
+                        ).toList(),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                Expanded(
+                  child: TabBarView(
+                    controller: tabController,
+                    children: List<Widget>.generate(
+                      tabCount,
+                      (index) {
+                        final reaction = reactions[index];
+                        return SBUScrollBarComponent(
+                          controller: scrollController,
+                          child: ListView.builder(
+                            controller: scrollController,
+                            itemCount: reaction.userIds.length,
+                            itemBuilder: (context, i) {
+                              if (channel is GroupChannel) {
+                                final member = channel.members.firstWhereOrNull(
+                                  (member) =>
+                                      (member.userId == reaction.userIds[i]),
+                                );
+                                if (member != null) {
+                                  return SBUReactionMemberListItemComponent(
+                                    width: double.maxFinite,
+                                    height: 48,
+                                    backgroundColor: isLightTheme
+                                        ? SBUColors.background50
+                                        : SBUColors.background500,
+                                    user: member,
+                                  );
+                                }
+                              }
+                              return null;
+                            },
+                          ),
+                        );
+                      },
+                    ).toList(),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

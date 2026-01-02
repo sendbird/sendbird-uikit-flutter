@@ -1,3 +1,9 @@
+## v1.3.0 (Jan 2, 2026)
+
+### Features
+- Added `chooseFiles` parameter in `SendbirdUIKit.init()`
+- Added `onListItemWithIndexClicked` parameter in `SBUGroupChannelScreen` constructor
+
 ## v1.2.1 (Nov 25, 2025)
 
 ### Improvements

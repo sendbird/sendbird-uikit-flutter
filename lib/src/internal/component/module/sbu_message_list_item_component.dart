@@ -30,6 +30,8 @@ class SBUMessageListItemComponent extends SBUStatefulComponent {
   final int messageIndex;
   final void Function(GroupChannel)? on1On1ChannelCreated;
   final void Function(GroupChannel, BaseMessage)? onListItemClicked;
+  final void Function(GroupChannel, BaseMessage, int index)?
+      onListItemWithIndexClicked;
   final void Function(BaseMessage)? onParentMessageClicked;
 
   const SBUMessageListItemComponent({
@@ -38,6 +40,7 @@ class SBUMessageListItemComponent extends SBUStatefulComponent {
     required this.messageIndex,
     this.on1On1ChannelCreated,
     this.onListItemClicked,
+    this.onListItemWithIndexClicked,
     this.onParentMessageClicked,
     super.key,
   });
@@ -117,7 +120,7 @@ class SBUMessageListItemComponentState
           collection,
           messageList,
           messageIndex,
-          message as FileMessage,
+          message,
           isLightTheme,
           strings,
         );
@@ -126,7 +129,7 @@ class SBUMessageListItemComponentState
           collection,
           messageList,
           messageIndex,
-          message as FileMessage,
+          message,
           isLightTheme,
           strings,
         );
@@ -312,7 +315,7 @@ class SBUMessageListItemComponentState
     MessageCollection collection,
     List<BaseMessage> messageList,
     int messageIndex,
-    FileMessage message,
+    BaseMessage message,
     bool isLightTheme,
     SBUStrings strings,
   ) {
@@ -336,15 +339,25 @@ class SBUMessageListItemComponentState
         isLightTheme: isLightTheme,
         strings: strings,
         isMyMessage: false,
-        child: _otherFileMessageItemWidget(
-          collection: collection,
-          message: message,
-          isSameMinuteAtPreviousMessage: isSameMinuteAtPreviousMessage,
-          isSameMinuteAtNextMessage: isSameMinuteAtNextMessage,
-          timeString: timeString,
-          isLightTheme: isLightTheme,
-          strings: strings,
-        ),
+        child: message is MultipleFilesMessage
+            ? _otherMultipleFilesMessageItemWidget(
+                collection: collection,
+                message: message,
+                isSameMinuteAtPreviousMessage: isSameMinuteAtPreviousMessage,
+                isSameMinuteAtNextMessage: isSameMinuteAtNextMessage,
+                timeString: timeString,
+                isLightTheme: isLightTheme,
+                strings: strings,
+              )
+            : _otherFileMessageItemWidget(
+                collection: collection,
+                message: message as FileMessage,
+                isSameMinuteAtPreviousMessage: isSameMinuteAtPreviousMessage,
+                isSameMinuteAtNextMessage: isSameMinuteAtNextMessage,
+                timeString: timeString,
+                isLightTheme: isLightTheme,
+                strings: strings,
+              ),
       ),
     );
   }
@@ -353,7 +366,7 @@ class SBUMessageListItemComponentState
     MessageCollection collection,
     List<BaseMessage> messageList,
     int messageIndex,
-    FileMessage message,
+    BaseMessage message,
     bool isLightTheme,
     SBUStrings strings,
   ) {
@@ -377,15 +390,25 @@ class SBUMessageListItemComponentState
         isLightTheme: isLightTheme,
         strings: strings,
         isMyMessage: true,
-        child: _myFileMessageItemWidget(
-          collection: collection,
-          message: message,
-          isSameMinuteAtPreviousMessage: isSameMinuteAtPreviousMessage,
-          isSameMinuteAtNextMessage: isSameMinuteAtNextMessage,
-          timeString: timeString,
-          isLightTheme: isLightTheme,
-          strings: strings,
-        ),
+        child: message is MultipleFilesMessage
+            ? _myMultipleFilesMessageItemWidget(
+                collection: collection,
+                message: message,
+                isSameMinuteAtPreviousMessage: isSameMinuteAtPreviousMessage,
+                isSameMinuteAtNextMessage: isSameMinuteAtNextMessage,
+                timeString: timeString,
+                isLightTheme: isLightTheme,
+                strings: strings,
+              )
+            : _myFileMessageItemWidget(
+                collection: collection,
+                message: message as FileMessage,
+                isSameMinuteAtPreviousMessage: isSameMinuteAtPreviousMessage,
+                isSameMinuteAtNextMessage: isSameMinuteAtNextMessage,
+                timeString: timeString,
+                isLightTheme: isLightTheme,
+                strings: strings,
+              ),
       ),
     );
   }
@@ -483,30 +506,45 @@ class SBUMessageListItemComponentState
     return m1.sender?.userId == m2.sender?.userId;
   }
 
-  Widget? _getThumbnail({
-    required FileMessage message,
+  Widget? _getThumbnailWidget({
+    required bool isSucceededMessage,
+    required String? requestId,
+    required int messageId,
+    required int? multipleFileIndex,
+    required List<Thumbnail>? thumbnails,
+    required String? mimeType,
+    required String secureUrl,
+    required String? filePath,
     required bool isLightTheme,
     required bool isParentMessage,
   }) {
-    final fileType = widget.getFileType(message);
+    final fileType = widget.getFileType(mimeType);
 
-    Widget? thumbnailWidget;
     if (fileType == SBUFileType.image || fileType == SBUFileType.video) {
-      thumbnailWidget = SBUThumbnailManager().getThumbnail(
-        message: message,
+      Widget? thumbnailWidget = SBUThumbnailManager().getThumbnailWidget(
+        isSucceededMessage: isSucceededMessage,
+        requestId: requestId,
+        messageId: messageId,
+        multipleFileIndex: multipleFileIndex,
+        thumbnails: thumbnails,
+        mimeType: mimeType,
+        secureUrl: secureUrl,
+        filePath: filePath,
         fileType: fileType,
         isLightTheme: isLightTheme,
         addGifIcon: true,
         isParentMessage: isParentMessage,
       );
 
-      final size = isParentMessage ? 31.2 : 48.0;
-      final iconSize = isParentMessage ? 18.2 : 28.0;
-
       if (thumbnailWidget != null) {
         if (fileType == SBUFileType.image) {
           return thumbnailWidget;
         } else if (fileType == SBUFileType.video) {
+          final size =
+              isParentMessage || multipleFileIndex != null ? 31.2 : 48.0;
+          final iconSize =
+              isParentMessage || multipleFileIndex != null ? 18.2 : 28.0;
+
           return Stack(
             alignment: Alignment.center,
             children: [
@@ -542,9 +580,10 @@ class SBUMessageListItemComponentState
   }
 
   Widget _fileWidget({
-    required FileMessage message,
+    required String? fileName,
     required bool isLightTheme,
     required bool isMyMessage,
+    required int? multipleFileIndex,
   }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -563,7 +602,7 @@ class SBUMessageListItemComponentState
         ),
         Flexible(
           child: SBUTextComponent(
-            text: message.name ?? '',
+            text: fileName ?? '',
             textType: SBUTextType.body3,
             textColorType: isMyMessage
                 ? SBUTextColorType.message
@@ -736,7 +775,7 @@ class SBUMessageListItemComponentState
                                       maxLines: null,
                                     ),
                                   ),
-                                  if (message.updatedAt > message.createdAt)
+                                  if (message.updatedAt >= message.createdAt)
                                     Padding(
                                       padding: const EdgeInsets.only(left: 4),
                                       child: SBUTextComponent(
@@ -1020,7 +1059,7 @@ class SBUMessageListItemComponentState
                                       maxLines: null,
                                     ),
                                   ),
-                                  if (message.updatedAt > message.createdAt)
+                                  if (message.updatedAt >= message.createdAt)
                                     Padding(
                                       padding: const EdgeInsets.only(left: 4),
                                       child: SBUTextComponent(
@@ -1060,13 +1099,25 @@ class SBUMessageListItemComponentState
     required bool isLightTheme,
     required SBUStrings strings,
   }) {
-    final thumbnailWidget = _getThumbnail(
-      message: message,
+    final thumbnailWidget = _getThumbnailWidget(
+      isSucceededMessage: message.sendingStatus == SendingStatus.succeeded,
+      requestId: message.requestId,
+      messageId: message.messageId,
+      multipleFileIndex: null,
+      thumbnails: message.thumbnails,
+      mimeType: message.type,
+      secureUrl: message.secureUrl,
+      filePath: message.file?.path,
       isLightTheme: isLightTheme,
       isParentMessage: false,
     );
+
     final fileWidget = _fileWidget(
-        message: message, isLightTheme: isLightTheme, isMyMessage: false);
+      fileName: message.name,
+      isLightTheme: isLightTheme,
+      isMyMessage: false,
+      multipleFileIndex: null,
+    );
 
     return Row(
       mainAxisSize: MainAxisSize.max,
@@ -1267,6 +1318,308 @@ class SBUMessageListItemComponentState
     );
   }
 
+  Widget _otherMultipleFilesMessageItemWidget({
+    required MessageCollection collection,
+    required MultipleFilesMessage message,
+    required bool isSameMinuteAtPreviousMessage,
+    required bool isSameMinuteAtNextMessage,
+    required String timeString,
+    required bool isLightTheme,
+    required SBUStrings strings,
+  }) {
+    List<Widget?> thumbnailWidgets = [];
+    List<Widget?> fileWidgets = [];
+
+    for (int i = 0; i < message.files.length; i++) {
+      thumbnailWidgets.add(_getThumbnailWidget(
+        isSucceededMessage: message.sendingStatus == SendingStatus.succeeded,
+        requestId: message.requestId,
+        messageId: message.messageId,
+        multipleFileIndex: i,
+        thumbnails: message.files[i].thumbnails,
+        mimeType: message.files[i].type,
+        secureUrl: message.files[i].secureUrl,
+        filePath: message.files[i].file?.path,
+        isLightTheme: isLightTheme,
+        isParentMessage: false,
+      ));
+
+      fileWidgets.add(_fileWidget(
+        fileName: message.files[i].name,
+        isLightTheme: isLightTheme,
+        isMyMessage: true,
+        multipleFileIndex: i,
+      ));
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.max,
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(right: 12, bottom: 2),
+          child: (isSameMinuteAtNextMessage == false)
+              ? Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () async {
+                      if (message.sender != null) {
+                        widget.unfocus();
+                        await showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                              topRight: Radius.circular(8),
+                            ),
+                          ),
+                          builder: (context) {
+                            return SBUBottomSheetUserComponent(
+                              user: message.sender!,
+                              on1On1ChannelCreated: widget.on1On1ChannelCreated,
+                            );
+                          },
+                        );
+                      }
+                    },
+                    child: widget.getAvatarComponent(
+                      isLightTheme: isLightTheme,
+                      size: 26,
+                      user: message.sender,
+                    ),
+                  ),
+                )
+              : const SizedBox(width: 26),
+        ),
+        Flexible(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isSameMinuteAtPreviousMessage == false)
+                if (message.isReplyToChannel == false &&
+                    message.parentMessageId == null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12, bottom: 4),
+                    child: SBUTextComponent(
+                      text: widget.getNickname(message.sender, strings),
+                      textType: SBUTextType.caption1,
+                      textColorType: SBUTextColorType.text02,
+                    ),
+                  ),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onLongPress: () async {
+                    if (!SBUReactionManager()
+                            .isReactionAvailable(collection.channel, message) &&
+                        SendbirdUIKit().downloadFile == null &&
+                        !SBUReplyManager()
+                            .isQuoteReplyAvailable(collection.channel) &&
+                        !SBUMarkAsUnreadManager().isOn()) {
+                      return;
+                    }
+
+                    widget.unfocus();
+                    await showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(8),
+                          topRight: Radius.circular(8),
+                        ),
+                      ),
+                      builder: (context) {
+                        return SBUBottomSheetMenuComponent(
+                          channel: collection.channel,
+                          message: message,
+                          iconNames: [
+                            if (SBUMarkAsUnreadManager().isOn())
+                              SBUIcons.markAsUnread,
+                            if (SBUReplyManager()
+                                .isQuoteReplyAvailable(collection.channel))
+                              SBUIcons.reply,
+                          ],
+                          buttonNames: [
+                            if (SBUMarkAsUnreadManager().isOn())
+                              strings.markAsUnread,
+                            if (SBUReplyManager()
+                                .isQuoteReplyAvailable(collection.channel))
+                              strings.reply,
+                          ],
+                          onButtonClicked: (buttonName) async {
+                            if (buttonName == strings.markAsUnread) {
+                              await _markAsUnread(collection.channel, message);
+                            } else if (buttonName == strings.reply) {
+                              SBUMessageCollectionProvider()
+                                  .setReplyingToMessage(
+                                widget.messageCollectionNo,
+                                message,
+                              );
+                            }
+                          },
+                          disabledNames:
+                              message.isReplyToChannel ? [strings.reply] : null,
+                        );
+                      },
+                    );
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isLightTheme
+                          ? SBUColors.background100
+                          : SBUColors.background400,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            width: imageWidth, // Check
+                            padding: const EdgeInsets.all(4),
+                            child: GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 4,
+                                mainAxisSpacing: 4,
+                                childAspectRatio: 1,
+                              ),
+                              itemCount: thumbnailWidgets.length,
+                              itemBuilder: (context, index) {
+                                final len = thumbnailWidgets.length;
+
+                                double topLeft = (index == 0 ? 12 : 6);
+                                double topRight = (index == 1 ? 12 : 6);
+
+                                double bottomLeft = 6;
+                                if (len <= 2) {
+                                  if (index == 0) {
+                                    bottomLeft = 12;
+                                  }
+                                } else if (len % 2 == 0) {
+                                  if (index == len - 2) {
+                                    bottomLeft = 12;
+                                  }
+                                } else if (len % 2 == 1) {
+                                  if (index == len - 1) {
+                                    bottomLeft = 12;
+                                  }
+                                }
+
+                                double bottomRight = 6;
+                                if (len <= 2) {
+                                  if (index == 1) {
+                                    bottomRight = 12;
+                                  }
+                                } else if (len % 2 == 0) {
+                                  if (index == len - 1) {
+                                    bottomRight = 12;
+                                  }
+                                }
+
+                                return ClipRRect(
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(topLeft),
+                                    topRight: Radius.circular(topRight),
+                                    bottomLeft: Radius.circular(bottomLeft),
+                                    bottomRight: Radius.circular(bottomRight),
+                                  ),
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      InkWell(
+                                        onTap: () async {
+                                          if (widget
+                                                  .onListItemWithIndexClicked !=
+                                              null) {
+                                            widget.onListItemWithIndexClicked!(
+                                                collection.channel,
+                                                message,
+                                                index);
+                                          }
+                                        },
+                                        child: thumbnailWidgets[index] ??
+                                            Container(
+                                              color: isLightTheme
+                                                  ? SBUColors.primaryMain
+                                                  : SBUColors.primaryLight,
+                                              padding: const EdgeInsets.only(
+                                                  left: 12,
+                                                  right: 12,
+                                                  top: 7,
+                                                  bottom: 7),
+                                              child: fileWidgets[index] ??
+                                                  Container(
+                                                    color: isLightTheme
+                                                        ? SBUColors.background50
+                                                        : SBUColors
+                                                            .background600,
+                                                  ),
+                                            ),
+                                      ),
+                                      if (message.sendingStatus ==
+                                          SendingStatus.pending) ...[
+                                        Builder(builder: (context) {
+                                          final uploadedIndices =
+                                              SBUMessageCollectionProvider()
+                                                  .getUploadedFileIndices(
+                                                      widget
+                                                          .messageCollectionNo,
+                                                      message.requestId);
+
+                                          if (!uploadedIndices
+                                              .contains(index)) {
+                                            return Container(
+                                              color: Colors.black
+                                                  .withAlpha(82), // Check
+                                            );
+                                          } else {
+                                            return const SizedBox.shrink();
+                                          }
+                                        }),
+                                      ],
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        SBUReactionComponent(
+                          channel: collection.channel,
+                          message: message,
+                          width: imageWidth, // Check
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          height: 16,
+          alignment: AlignmentDirectional.center,
+          padding: const EdgeInsets.only(left: 4),
+          child: SBUTextComponent(
+            text: timeString,
+            textType: SBUTextType.caption4,
+            textColorType: SBUTextColorType.text03,
+            transparent: isSameMinuteAtNextMessage,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _myFileMessageItemWidget({
     required MessageCollection collection,
     required FileMessage message,
@@ -1280,13 +1633,25 @@ class SBUMessageListItemComponentState
         widget.getReadStatusIcon(collection.channel, message, isLightTheme);
     final isDisabled = widget.isDisabled(collection.channel);
 
-    final thumbnailWidget = _getThumbnail(
-      message: message,
+    final thumbnailWidget = _getThumbnailWidget(
+      isSucceededMessage: message.sendingStatus == SendingStatus.succeeded,
+      requestId: message.requestId,
+      messageId: message.messageId,
+      multipleFileIndex: null,
+      thumbnails: message.thumbnails,
+      mimeType: message.type,
+      secureUrl: message.secureUrl,
+      filePath: message.file?.path,
       isLightTheme: isLightTheme,
       isParentMessage: false,
     );
+
     final fileWidget = _fileWidget(
-        message: message, isLightTheme: isLightTheme, isMyMessage: true);
+      fileName: message.name,
+      isLightTheme: isLightTheme,
+      isMyMessage: true,
+      multipleFileIndex: null,
+    );
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -1559,6 +1924,469 @@ class SBUMessageListItemComponentState
     );
   }
 
+  Widget _myMultipleFilesMessageItemWidget({
+    required MessageCollection collection,
+    required MultipleFilesMessage message,
+    required bool isSameMinuteAtPreviousMessage,
+    required bool isSameMinuteAtNextMessage,
+    required String timeString,
+    required bool isLightTheme,
+    required SBUStrings strings,
+  }) {
+    final readStatusIcon =
+        widget.getReadStatusIcon(collection.channel, message, isLightTheme);
+    final isDisabled = widget.isDisabled(collection.channel);
+
+    List<Widget?> thumbnailWidgets = [];
+    List<Widget?> fileWidgets = [];
+
+    int fileCount = message.files.length;
+    if (message.sendingStatus == SendingStatus.succeeded) {
+      for (int i = 0; i < fileCount; i++) {
+        thumbnailWidgets.add(_getThumbnailWidget(
+          isSucceededMessage: message.sendingStatus == SendingStatus.succeeded,
+          requestId: message.requestId,
+          messageId: message.messageId,
+          multipleFileIndex: i,
+          thumbnails: message.files[i].thumbnails,
+          mimeType: message.files[i].type,
+          secureUrl: message.files[i].secureUrl,
+          filePath: message.files[i].file?.path,
+          isLightTheme: isLightTheme,
+          isParentMessage: false,
+        ));
+
+        fileWidgets.add(_fileWidget(
+          fileName: message.files[i].name,
+          isLightTheme: isLightTheme,
+          isMyMessage: true,
+          multipleFileIndex: i,
+        ));
+      }
+    } else {
+      fileCount =
+          message.messageCreateParams?.uploadableFileInfoList.length ?? 0;
+
+      for (int i = 0; i < fileCount; i++) {
+        final uploadableFileInfo =
+            message.messageCreateParams?.uploadableFileInfoList[i];
+
+        thumbnailWidgets.add(_getThumbnailWidget(
+          isSucceededMessage: message.sendingStatus == SendingStatus.succeeded,
+          requestId: message.requestId,
+          messageId: message.messageId,
+          multipleFileIndex: i,
+          thumbnails: null,
+          mimeType: uploadableFileInfo?.fileInfo.mimeType,
+          secureUrl: '',
+          filePath: uploadableFileInfo?.fileInfo.file?.path,
+          isLightTheme: isLightTheme,
+          isParentMessage: false,
+        ));
+
+        fileWidgets.add(_fileWidget(
+          fileName: uploadableFileInfo?.fileInfo.fileName,
+          isLightTheme: isLightTheme,
+          isMyMessage: true,
+          multipleFileIndex: i,
+        ));
+      }
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (message.sendingStatus == SendingStatus.succeeded &&
+            isSameMinuteAtNextMessage)
+          Container(
+            height: 16,
+            alignment: AlignmentDirectional.center,
+            padding: const EdgeInsets.only(right: 4),
+            child: SBUTextComponent(
+              text: timeString,
+              textType: SBUTextType.caption4,
+              textColorType: SBUTextColorType.text03,
+              transparent: isSameMinuteAtNextMessage,
+            ),
+          ),
+        if (readStatusIcon != null)
+          Padding(
+            padding: const EdgeInsets.only(right: 4, bottom: 2),
+            child: readStatusIcon,
+          ),
+        if (message.sendingStatus == SendingStatus.pending)
+          Padding(
+            padding: const EdgeInsets.only(right: 4, bottom: 2),
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                  color: isLightTheme
+                      ? SBUColors.primaryMain
+                      : SBUColors.primaryLight,
+                  strokeWidth: 1.4),
+            ),
+          ),
+        if (message.sendingStatus == SendingStatus.failed)
+          Padding(
+            padding: const EdgeInsets.only(right: 4, bottom: 2),
+            child: SBUIconComponent(
+              iconSize: 16,
+              iconData: SBUIcons.error,
+              iconColor:
+                  isLightTheme ? SBUColors.errorMain : SBUColors.errorLight,
+            ),
+          ),
+        if (message.sendingStatus == SendingStatus.succeeded &&
+            isSameMinuteAtNextMessage == false)
+          Container(
+            height: 16,
+            alignment: AlignmentDirectional.center,
+            padding: const EdgeInsets.only(right: 4),
+            child: SBUTextComponent(
+              text: timeString,
+              textType: SBUTextType.caption4,
+              textColorType: SBUTextColorType.text03,
+            ),
+          ),
+        Flexible(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onLongPress: () async {
+                if (message.sendingStatus == SendingStatus.succeeded) {
+                  if (!SBUReactionManager()
+                          .isReactionAvailable(collection.channel, message) &&
+                      SendbirdUIKit().downloadFile == null &&
+                      isDisabled &&
+                      !SBUReplyManager()
+                          .isQuoteReplyAvailable(collection.channel) &&
+                      !SBUMarkAsUnreadManager().isOn()) {
+                    return;
+                  }
+
+                  widget.unfocus();
+                  await showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(8),
+                        topRight: Radius.circular(8),
+                      ),
+                    ),
+                    builder: (context) {
+                      return SBUBottomSheetMenuComponent(
+                        channel: collection.channel,
+                        message: message,
+                        iconNames: [
+                          if (SBUMarkAsUnreadManager().isOn())
+                            SBUIcons.markAsUnread,
+                          if (!isDisabled)
+                            if (SBUMessageCollectionProvider().canDeleteMessage(
+                                widget.messageCollectionNo, message))
+                              SBUIcons.delete,
+                          if (SBUReplyManager()
+                              .isQuoteReplyAvailable(collection.channel))
+                            SBUIcons.reply,
+                        ],
+                        buttonNames: [
+                          if (SBUMarkAsUnreadManager().isOn())
+                            strings.markAsUnread,
+                          if (!isDisabled)
+                            if (SBUMessageCollectionProvider().canDeleteMessage(
+                                widget.messageCollectionNo, message))
+                              strings.delete,
+                          if (SBUReplyManager()
+                              .isQuoteReplyAvailable(collection.channel))
+                            strings.reply,
+                        ],
+                        onButtonClicked: (buttonName) async {
+                          if (buttonName == strings.markAsUnread) {
+                            await _markAsUnread(collection.channel, message);
+                          } else if (buttonName == strings.delete) {
+                            await showDialog(
+                              context: context,
+                              barrierDismissible: true,
+                              builder: (context) => SBUDialogMenuComponent(
+                                title: strings.doYouWantToDeleteAllPhotos(
+                                    fileCount.toString()),
+                                buttonNames: [
+                                  strings.cancel,
+                                  strings.delete,
+                                ],
+                                onButtonClicked: (buttonName) async {
+                                  if (buttonName == strings.cancel) {
+                                    // Cancel
+                                  } else if (buttonName == strings.delete) {
+                                    if (message.sendingStatus ==
+                                        SendingStatus.succeeded) {
+                                      runZonedGuarded(() async {
+                                        await collection.channel
+                                            .deleteMessage(message.messageId);
+                                      }, (error, stack) {
+                                        // TODO: Check error
+                                      });
+                                    } else if (message.sendingStatus ==
+                                        SendingStatus.failed) {
+                                      await collection.removeFailedMessages(
+                                          messages: [message]);
+                                    }
+                                  }
+                                },
+                                isYesOrNo: true,
+                                maxLines: 2,
+                              ),
+                            );
+                          } else if (buttonName == strings.reply) {
+                            SBUMessageCollectionProvider().setReplyingToMessage(
+                              widget.messageCollectionNo,
+                              message,
+                            );
+                          }
+                        },
+                        disabledNames: [
+                          if (message.isReplyToChannel) strings.reply,
+                          if (message.threadInfo != null &&
+                              message.threadInfo!.replyCount > 0)
+                            strings.delete,
+                        ],
+                      );
+                    },
+                  );
+                } else if (message.sendingStatus == SendingStatus.failed) {
+                  widget.unfocus();
+                  await showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(8),
+                        topRight: Radius.circular(8),
+                      ),
+                    ),
+                    builder: (context) {
+                      return SBUBottomSheetMenuComponent(
+                        buttonNames: [
+                          if (!isDisabled) strings.retry,
+                          strings.remove,
+                        ],
+                        onButtonClicked: (buttonName) async {
+                          if (buttonName == strings.retry) {
+                            try {
+                              collection.channel.resendMultipleFilesMessage(
+                                message,
+                                fileUploadHandler: (requestId, index,
+                                    uploadableFileInfo, error) {
+                                  if (error == null) {
+                                    SBUMessageCollectionProvider()
+                                        .notifyFileUploadCompleted(
+                                      widget.messageCollectionNo,
+                                      requestId,
+                                      index,
+                                    );
+                                  }
+                                },
+                              );
+                            } catch (e) {
+                              // Check
+                            }
+                          } else if (buttonName == strings.remove) {
+                            await collection
+                                .removeFailedMessages(messages: [message]);
+                          }
+                        },
+                        errorColorIndex: 1,
+                      );
+                    },
+                  );
+                }
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isLightTheme
+                      ? SBUColors.background100
+                      : SBUColors.background400,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: imageWidth, // Check
+                        padding: const EdgeInsets.all(4),
+                        child: GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 4,
+                            mainAxisSpacing: 4,
+                            childAspectRatio: 1,
+                          ),
+                          itemCount: thumbnailWidgets.length >= 3 &&
+                                  thumbnailWidgets.length % 2 == 1
+                              ? thumbnailWidgets.length + 1
+                              : thumbnailWidgets.length,
+                          itemBuilder: (context, index) {
+                            final len = thumbnailWidgets.length;
+                            Widget? thumbnailWidget;
+                            Widget? fileWidget;
+                            bool isEmptyWidget = false;
+
+                            if (len >= 3 && len % 2 == 1) {
+                              if (index == len - 1) {
+                                isEmptyWidget = true;
+                                thumbnailWidget = Container();
+                                fileWidget = Container();
+                              } else if (index == len) {
+                                thumbnailWidget = thumbnailWidgets[index - 1];
+                                fileWidget = fileWidgets[index - 1];
+                              } else {
+                                thumbnailWidget = thumbnailWidgets[index];
+                                fileWidget = fileWidgets[index];
+                              }
+                            } else {
+                              thumbnailWidget = thumbnailWidgets[index];
+                              fileWidget = fileWidgets[index];
+                            }
+
+                            double topLeft = (index == 0 ? 12 : 6);
+                            double topRight = (index == 1 ? 12 : 6);
+
+                            double bottomLeft = 6;
+                            if (len <= 2) {
+                              if (index == 0) {
+                                bottomLeft = 12;
+                              }
+                            } else if (len % 2 == 0) {
+                              if (index == len - 2) {
+                                bottomLeft = 12;
+                              }
+                            }
+
+                            double bottomRight = 6;
+                            if (len <= 2) {
+                              if (index == 1) {
+                                bottomRight = 12;
+                              }
+                            } else if (len % 2 == 0) {
+                              if (index == len - 1) {
+                                bottomRight = 12;
+                              }
+                            } else if (len % 2 == 1) {
+                              if (index == len) {
+                                bottomRight = 12;
+                              }
+                            }
+
+                            return ClipRRect(
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(topLeft),
+                                topRight: Radius.circular(topRight),
+                                bottomLeft: Radius.circular(bottomLeft),
+                                bottomRight: Radius.circular(bottomRight),
+                              ),
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  InkWell(
+                                    onTap: () async {
+                                      if (widget.onListItemWithIndexClicked !=
+                                          null) {
+                                        if (len >= 3 &&
+                                            len % 2 == 1 &&
+                                            index == len - 1) {
+                                          return;
+                                        }
+
+                                        int actualFileIndex = index;
+                                        if (len >= 3 &&
+                                            len % 2 == 1 &&
+                                            index == len) {
+                                          actualFileIndex = index - 1;
+                                        }
+
+                                        widget.onListItemWithIndexClicked!(
+                                          collection.channel,
+                                          message,
+                                          actualFileIndex,
+                                        );
+                                      }
+                                    },
+                                    child: thumbnailWidget ??
+                                        Container(
+                                          color: isLightTheme
+                                              ? SBUColors.primaryMain
+                                              : SBUColors.primaryLight,
+                                          padding: const EdgeInsets.only(
+                                              left: 12,
+                                              right: 12,
+                                              top: 7,
+                                              bottom: 7),
+                                          child: fileWidget ??
+                                              Container(
+                                                color: isLightTheme
+                                                    ? SBUColors.background50
+                                                    : SBUColors.background600,
+                                              ),
+                                        ),
+                                  ),
+                                  if (!isEmptyWidget &&
+                                      message.sendingStatus ==
+                                          SendingStatus.pending) ...[
+                                    Builder(builder: (context) {
+                                      final uploadedIndices =
+                                          SBUMessageCollectionProvider()
+                                              .getUploadedFileIndices(
+                                                  widget.messageCollectionNo,
+                                                  message.requestId);
+
+                                      int actualFileIndex = index;
+                                      if (len >= 3 &&
+                                          len % 2 == 1 &&
+                                          index == len) {
+                                        actualFileIndex = index - 1;
+                                      }
+
+                                      if (!uploadedIndices
+                                          .contains(actualFileIndex)) {
+                                        return Container(
+                                          color: Colors.black
+                                              .withAlpha(82), // Check
+                                        );
+                                      } else {
+                                        return const SizedBox.shrink();
+                                      }
+                                    }),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    SBUReactionComponent(
+                      channel: collection.channel,
+                      message: message,
+                      width: imageWidth, // Check
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        )
+      ],
+    );
+  }
+
   Widget _messageItemPadding({
     required BaseMessage message,
     required int messageIndex,
@@ -1639,8 +2467,15 @@ class SBUMessageListItemComponentState
         );
       }
     } else if (message is FileMessage) {
-      final thumbnailWidget = _getThumbnail(
-        message: message,
+      final thumbnailWidget = _getThumbnailWidget(
+        isSucceededMessage: message.sendingStatus == SendingStatus.succeeded,
+        requestId: message.requestId,
+        messageId: message.messageId,
+        multipleFileIndex: null,
+        thumbnails: message.thumbnails,
+        mimeType: message.type,
+        secureUrl: message.secureUrl,
+        filePath: message.file?.path,
         isLightTheme: isLightTheme,
         isParentMessage: true,
       );
@@ -1695,6 +2530,92 @@ class SBUMessageListItemComponentState
                       Flexible(
                         child: SBUTextComponent(
                           text: message.name ?? '',
+                          textType: SBUTextType.body3,
+                          textColorType: SBUTextColorType.text03,
+                          // SBUTextOverflowType.ellipsisMiddle
+                          textOverflowType: null,
+                          maxLines: null, // 1
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+        ),
+      );
+
+      if (isMyMessage) {
+        return parentFileMessageWidget;
+      } else {
+        return Padding(
+          padding: const EdgeInsets.only(left: 38),
+          child: parentFileMessageWidget,
+        );
+      }
+    } else if (message is MultipleFilesMessage) {
+      const index = 0;
+      final thumbnailWidget = _getThumbnailWidget(
+        isSucceededMessage: message.sendingStatus == SendingStatus.succeeded,
+        requestId: message.requestId,
+        messageId: message.messageId,
+        multipleFileIndex: null,
+        thumbnails: message.files[index].thumbnails,
+        mimeType: message.files[index].type,
+        secureUrl: message.files[index].secureUrl,
+        filePath: message.files[index].file?.path,
+        isLightTheme: isLightTheme,
+        isParentMessage: true,
+      );
+
+      final parentFileMessageWidget = Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            _moveToParentMessage(message);
+          },
+          child: (thumbnailWidget != null)
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Stack(
+                    children: [
+                      SizedBox(
+                        width: 156,
+                        height: 104,
+                        child: thumbnailWidget,
+                      ),
+                      Container(
+                        width: 156,
+                        height: 104,
+                        color: const Color(0x00FFFFFF).withOpacity(0.4),
+                      ),
+                    ],
+                  ),
+                )
+              : Container(
+                  height: 38,
+                  padding: const EdgeInsets.only(
+                      left: 12, top: 6, right: 12, bottom: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    color: isLightTheme
+                        ? SBUColors.background100
+                        : SBUColors.background400,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: SBUIconComponent(
+                          iconSize: 16,
+                          iconData: SBUIcons.fileDocument,
+                          iconColor: isLightTheme
+                              ? SBUColors.lightThemeTextLowEmphasis
+                              : SBUColors.darkThemeTextLowEmphasis,
+                        ),
+                      ),
+                      Flexible(
+                        child: SBUTextComponent(
+                          text: message.files[index].name ?? '',
                           textType: SBUTextType.body3,
                           textColorType: SBUTextColorType.text03,
                           // SBUTextOverflowType.ellipsisMiddle

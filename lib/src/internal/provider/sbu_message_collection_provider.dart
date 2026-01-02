@@ -25,6 +25,9 @@ class SBUMessageCollectionProvider with ChangeNotifier {
   final Map<String, bool> _enabledNewLineMap = {};
   final Map<String, int> _newMessageCountMap = {};
 
+  // Multiple files message upload tracking
+  final Map<String, Set<int>> _uploadedFileIndicesMap = {};
+
   SBUMessageCollectionProvider._();
 
   static final SBUMessageCollectionProvider _provider =
@@ -387,6 +390,18 @@ class SBUMessageCollectionProvider with ChangeNotifier {
 
   void _messagesUpdated(MessageContext context, GroupChannel channel,
       List<BaseMessage> messages) {
+    if (context.collectionEventSource ==
+        CollectionEventSource.eventMessageSent) {
+      for (final message in messages) {
+        if (message is MultipleFilesMessage &&
+            message.sendingStatus == SendingStatus.succeeded) {
+          for (final collectionNo in _getCollectionNoList(channel.channelUrl)) {
+            clearUploadedFileIndices(collectionNo, message.requestId);
+          }
+        }
+      }
+    }
+
     if (SBUMarkAsUnreadManager().isOn()) {
       if (context.collectionEventSource ==
           CollectionEventSource.eventMessageSent) {
@@ -579,5 +594,27 @@ class _MyMessageCollectionHandler extends MessageCollectionHandler {
   @override
   void onHugeGapDetected() {
     _provider._restart(_channelUrl);
+  }
+}
+
+extension MultipleFilesUploadTracking on SBUMessageCollectionProvider {
+  void notifyFileUploadCompleted(
+      int collectionNo, String requestId, int index) {
+    final key = '${collectionNo}_$requestId';
+    _uploadedFileIndicesMap[key] ??= {};
+    _uploadedFileIndicesMap[key]!.add(index);
+    _refresh();
+  }
+
+  Set<int> getUploadedFileIndices(int collectionNo, String? requestId) {
+    if (requestId == null) return {};
+    final key = '${collectionNo}_$requestId';
+    return _uploadedFileIndicesMap[key] ?? {};
+  }
+
+  void clearUploadedFileIndices(int collectionNo, String? requestId) {
+    if (requestId == null) return;
+    final key = '${collectionNo}_$requestId';
+    _uploadedFileIndicesMap.remove(key);
   }
 }
