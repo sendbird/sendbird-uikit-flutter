@@ -79,13 +79,21 @@ class SBUGroupChannelListItemComponentState
     String text = channel.lastMessage?.message ?? '';
     if (channel.lastMessage is FileMessage) {
       text = (channel.lastMessage as FileMessage).name ?? '';
+    } else if (channel.lastMessage is MultipleFilesMessage) {
+      final mfm = (channel.lastMessage as MultipleFilesMessage);
+      if (mfm.files.isNotEmpty) {
+        text = mfm.files.first.name ?? '';
+      } else {
+        text = '';
+      }
     }
 
     final lastMessage = SBUTextComponent(
       text: widget.getTypingStatus(channel, strings) ?? text,
       textType: SBUTextType.body3,
       textColorType: SBUTextColorType.text03,
-      textOverflowType: channel.lastMessage is FileMessage
+      textOverflowType: (channel.lastMessage is FileMessage ||
+              channel.lastMessage is MultipleFilesMessage)
           ? SBUTextOverflowType.ellipsisMiddle
           : SBUTextOverflowType.ellipsisEnd,
     );
@@ -133,19 +141,20 @@ class SBUGroupChannelListItemComponentState
     final preDateReadStatusIcon =
         widget.getReadStatusIcon(channel, channel.lastMessage, isLightTheme);
 
-    final fileIcon = channel.lastMessage is FileMessage
-        ? SBUFileIconComponent(
-            size: 26,
-            backgroundColor: isLightTheme
-                ? SBUColors.background100
-                : SBUColors.background500,
-            iconSize: 18,
-            iconData: SBUIcons.fileDocument,
-            iconColor: isLightTheme
-                ? SBUColors.lightThemeTextMidEmphasis
-                : SBUColors.darkThemeTextMidEmphasis,
-          )
-        : null;
+    SBUFileIconComponent? fileIcon;
+    if (channel.lastMessage is FileMessage ||
+        channel.lastMessage is MultipleFilesMessage) {
+      fileIcon = SBUFileIconComponent(
+        size: 26,
+        backgroundColor:
+            isLightTheme ? SBUColors.background100 : SBUColors.background500,
+        iconSize: 18,
+        iconData: SBUIcons.fileDocument,
+        iconColor: isLightTheme
+            ? SBUColors.lightThemeTextMidEmphasis
+            : SBUColors.darkThemeTextMidEmphasis,
+      );
+    }
 
     final badge = channel.unreadMessageCount > 0
         ? SBUBadgeComponent(

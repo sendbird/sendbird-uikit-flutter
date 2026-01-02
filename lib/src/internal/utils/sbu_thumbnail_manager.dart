@@ -27,68 +27,104 @@ class SBUThumbnailManager {
   List<String> completerKeys = [];
   Map<String, List<Completer<Widget?>>> completerMap = {};
 
-  String? _getKey(FileMessage message) {
+  static String? getCacheKey({
+    required bool isSucceededMessage,
+    required String? requestId,
+    required int messageId,
+    required int? multipleFileIndex,
+  }) {
     String? cacheKey;
-    if (message.requestId != null && message.requestId!.isNotEmpty) {
-      cacheKey = message.requestId;
-    } else if (message.messageId > 0) {
-      cacheKey = message.messageId.toString();
+    if (isSucceededMessage && messageId > 0) {
+      cacheKey = messageId.toString();
+    } else if (requestId != null && requestId.isNotEmpty) {
+      cacheKey = requestId;
+    }
+
+    if (cacheKey != null && multipleFileIndex != null) {
+      cacheKey = '${cacheKey}_$multipleFileIndex';
     }
     return cacheKey;
   }
 
-  bool _isGif(FileMessage message) {
-    String? mimeType = message.type;
+  bool _isGif(String? mimeType) {
     if (mimeType != null && mimeType == 'image/gif') {
       return true;
     }
     return false;
   }
 
-  Widget? getThumbnail({
-    required FileMessage message,
+  Widget? getThumbnailWidget({
+    required bool isSucceededMessage,
+    required String? requestId,
+    required int messageId,
+    required int? multipleFileIndex,
+    required List<Thumbnail>? thumbnails,
+    required String? mimeType,
+    required String secureUrl,
+    required String? filePath,
     required SBUFileType fileType,
     required bool isLightTheme,
     required bool addGifIcon,
     required bool isParentMessage,
   }) {
     String? thumbnailUrl;
-    if (message.thumbnails?.isNotEmpty ?? false) {
-      final thumbnail = message.thumbnails!.first;
+    if (thumbnails?.isNotEmpty ?? false) {
+      final thumbnail = thumbnails!.first;
       if (thumbnail.secureUrl.isNotEmpty) {
         thumbnailUrl = thumbnail.secureUrl;
       }
     }
 
-    final isGif = _isGif(message);
+    final isGif = _isGif(mimeType);
 
     if (fileType == SBUFileType.image) {
-      Widget? thumbnailWidget = _getThumbnail(message, fileType);
-      final size = isParentMessage ? 31.2 : 48.0;
-      final iconSize = isParentMessage ? 18.2 : 28.0;
+      Widget? thumbnailWidget = _getThumbnail(
+        isSucceededMessage: isSucceededMessage,
+        requestId: requestId,
+        messageId: messageId,
+        multipleFileIndex: multipleFileIndex,
+        mimeType: mimeType,
+        fileType: fileType,
+        filePath: filePath,
+      );
+
+      final size = isParentMessage || multipleFileIndex != null ? 31.2 : 48.0;
+      final iconSize =
+          isParentMessage || multipleFileIndex != null ? 18.2 : 28.0;
 
       if (thumbnailWidget == null) {
-        if (isGif && thumbnailUrl == null && message.secureUrl.isNotEmpty) {
-          final gif = Gif(
-            image: NetworkImage(message.secureUrl),
-            autostart: Autostart.no,
-            fit: BoxFit.cover,
-            useCache: true,
-          );
-
-          if (addGifIcon) {
-            return _getGifWidget(
-              thumbnailWidget: gif,
-              size: size,
-              iconSize: iconSize,
+        if (isGif && thumbnailUrl == null && secureUrl.isNotEmpty) {
+          Widget? gifWidget;
+          runZonedGuarded(() {
+            final gif = Gif(
+              image: NetworkImage(secureUrl),
+              autostart: Autostart.no,
+              fit: BoxFit.cover,
+              useCache: true,
             );
-          } else {
-            return gif;
-          }
+
+            if (addGifIcon) {
+              gifWidget = _getGifWidget(
+                thumbnailWidget: gif,
+                size: size,
+                iconSize: iconSize,
+              );
+            } else {
+              gifWidget = gif;
+            }
+          }, (e, s) {
+            // Check
+          });
+          return gifWidget;
         } else {
           thumbnailWidget = SBUImageComponent(
-            imageUrl: thumbnailUrl ?? message.secureUrl,
-            cacheKey: _getKey(message),
+            imageUrl: thumbnailUrl ?? secureUrl,
+            cacheKey: getCacheKey(
+              isSucceededMessage: isSucceededMessage,
+              requestId: requestId,
+              messageId: messageId,
+              multipleFileIndex: multipleFileIndex,
+            ),
             errorWidget: isGif
                 ? Stack(
                     alignment: Alignment.center,
@@ -133,7 +169,15 @@ class SBUThumbnailManager {
         return null;
       }
 
-      final widget = _getThumbnail(message, fileType);
+      final widget = _getThumbnail(
+        isSucceededMessage: isSucceededMessage,
+        requestId: requestId,
+        messageId: messageId,
+        multipleFileIndex: multipleFileIndex,
+        mimeType: mimeType,
+        fileType: fileType,
+        filePath: filePath,
+      );
       if (widget != null) {
         return widget;
       }
@@ -141,13 +185,25 @@ class SBUThumbnailManager {
       if (thumbnailUrl != null && thumbnailUrl.isNotEmpty) {
         return SBUImageComponent(
           imageUrl: thumbnailUrl,
-          cacheKey: _getKey(message),
+          cacheKey: getCacheKey(
+            isSucceededMessage: isSucceededMessage,
+            requestId: requestId,
+            messageId: messageId,
+            multipleFileIndex: multipleFileIndex,
+          ),
         );
       }
 
       return FutureBuilder<Widget?>(
-        future: _getVideoThumbnail(message),
-        builder: (BuildContext context, AsyncSnapshot<Widget?> snapshot) {
+        future: _getVideoThumbnail(
+          isSucceededMessage: isSucceededMessage,
+          requestId: requestId,
+          messageId: messageId,
+          multipleFileIndex: multipleFileIndex,
+          filePath: filePath,
+          secureUrl: secureUrl,
+        ),
+        builder: (context, snapshot) {
           if (snapshot.data == null) {
             return Container(); // Check
           } else if (snapshot.hasData && snapshot.data != null) {
@@ -160,9 +216,8 @@ class SBUThumbnailManager {
           }
         },
       );
-    } else {
-      return null;
     }
+    return null;
   }
 
   Widget _getGifWidget({
@@ -191,52 +246,80 @@ class SBUThumbnailManager {
     );
   }
 
-  Widget? _getThumbnail(FileMessage message, SBUFileType fileType) {
-    SBUThumbnailCache? cache = SBUPreferences().getThumbnailCache(message);
+  Widget? _getThumbnail({
+    required bool isSucceededMessage,
+    required String? requestId,
+    required int messageId,
+    required int? multipleFileIndex,
+    required String? mimeType,
+    required SBUFileType fileType,
+    required String? filePath,
+  }) {
+    SBUThumbnailCache? cache = SBUPreferences().getThumbnailCache(
+      isSucceededMessage: isSucceededMessage,
+      requestId: requestId,
+      messageId: messageId,
+      multipleFileIndex: multipleFileIndex,
+    );
 
     if (cache == null && fileType == SBUFileType.image) {
-      final filePath = message.file?.path;
       if (filePath != null && filePath.isNotEmpty) {
-        SBUPreferences().addThumbnailCache(message, filePath); // No await
+        SBUPreferences().addThumbnailCache(
+          isSucceededMessage: isSucceededMessage,
+          requestId: requestId,
+          messageId: messageId,
+          multipleFileIndex: multipleFileIndex,
+          filePath: filePath,
+        ); // No await
       }
     }
 
-    if (cache != null) {
-      try {
-        if (_isGif(message)) {
-          return Gif(
-            image: FileImage(File(cache.path)),
-            autostart: Autostart.no,
-            fit: BoxFit.cover,
-            useCache: true,
-          );
-        } else {
-          return Image.file(File(cache.path), fit: BoxFit.cover);
-        }
-      } catch (_) {
-        // Check
+    if (cache != null && cache.path.isNotEmpty) {
+      if (_isGif(mimeType)) {
+        return Gif(
+          image: FileImage(File(cache.path)),
+          autostart: Autostart.no,
+          fit: BoxFit.cover,
+          useCache: true,
+        );
+      } else {
+        return Image.file(
+          File(cache.path),
+          fit: BoxFit.cover,
+        );
       }
     }
     return null;
   }
 
-  Future<Widget?> _getVideoThumbnail(FileMessage message) async {
-    final filePath = message.file?.path;
-    final fileUrl = message.secureUrl;
-    final dir = await getTemporaryDirectory();
-
+  Future<Widget?> _getVideoThumbnail({
+    required bool isSucceededMessage,
+    required String? requestId,
+    required int messageId,
+    required int? multipleFileIndex,
+    required String? filePath,
+    required String secureUrl,
+  }) async {
     Widget? widget;
     String? videoPathOrUrl;
+
     if (filePath != null && filePath.isNotEmpty) {
       videoPathOrUrl = filePath;
-    } else if (fileUrl.isNotEmpty) {
-      videoPathOrUrl = fileUrl;
+    } else if (secureUrl.isNotEmpty) {
+      videoPathOrUrl = secureUrl;
     }
 
     if (videoPathOrUrl != null && videoPathOrUrl.isNotEmpty) {
+      final dir = await getTemporaryDirectory();
       final result = await _genVideoThumbnail(
-        message,
-        VideoThumbnailRequest(video: videoPathOrUrl, thumbnailPath: dir.path),
+        isSucceededMessage: isSucceededMessage,
+        requestId: requestId,
+        messageId: messageId,
+        multipleFileIndex: multipleFileIndex,
+        request: VideoThumbnailRequest(
+          video: videoPathOrUrl,
+          thumbnailPath: dir.path,
+        ),
       );
       widget = result?.image;
     }
@@ -247,14 +330,17 @@ class SBUThumbnailManager {
     return widget;
   }
 
-  Future<VideoThumbnailResult?> _genVideoThumbnail(
-    FileMessage message,
-    VideoThumbnailRequest request,
-  ) async {
+  Future<VideoThumbnailResult?> _genVideoThumbnail({
+    required bool isSucceededMessage,
+    required String? requestId,
+    required int messageId,
+    required int? multipleFileIndex,
+    required VideoThumbnailRequest request,
+  }) async {
     Uint8List? bytes;
     final completer = Completer<VideoThumbnailResult>();
     if (request.thumbnailPath != null) {
-      final thumbnailPath = await VideoThumbnail.thumbnailFile(
+      var thumbnail = await VideoThumbnail.thumbnailFile(
         video: request.video,
         thumbnailPath: request.thumbnailPath,
         imageFormat: request.imageFormat ?? ImageFormat.PNG,
@@ -264,10 +350,21 @@ class SBUThumbnailManager {
         quality: request.quality ?? 10,
       );
 
-      if (thumbnailPath != null) {
-        await SBUPreferences().addThumbnailCache(message, thumbnailPath);
-        final file = File(thumbnailPath);
-        bytes = file.readAsBytesSync();
+      // Decode URL-encoded thumbnail path (for empty string)
+      if (thumbnail != null) {
+        thumbnail = Uri.decodeFull(thumbnail);
+      }
+
+      if (thumbnail != null) {
+        await SBUPreferences().addThumbnailCache(
+          isSucceededMessage: isSucceededMessage,
+          requestId: requestId,
+          messageId: messageId,
+          multipleFileIndex: multipleFileIndex,
+          filePath: thumbnail,
+        );
+        final file = File(thumbnail);
+        bytes = await file.readAsBytes();
       }
     } else {
       bytes = await VideoThumbnail.thumbnailData(

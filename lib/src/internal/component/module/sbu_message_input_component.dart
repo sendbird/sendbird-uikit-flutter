@@ -10,6 +10,7 @@ import 'package:sendbird_uikit/sendbird_uikit.dart';
 import 'package:sendbird_uikit/src/internal/component/base/sbu_base_component.dart';
 import 'package:sendbird_uikit/src/internal/component/basic/sbu_bottom_sheet_menu_component.dart';
 import 'package:sendbird_uikit/src/internal/component/basic/sbu_file_message_icon_component.dart';
+import 'package:sendbird_uikit/src/internal/component/basic/sbu_file_multiple_files_message_icon_component.dart';
 import 'package:sendbird_uikit/src/internal/component/basic/sbu_icon_button_component.dart';
 import 'package:sendbird_uikit/src/internal/component/basic/sbu_icon_component.dart';
 import 'package:sendbird_uikit/src/internal/component/basic/sbu_text_button_component.dart';
@@ -105,6 +106,20 @@ class SBUMessageInputComponentState extends State<SBUMessageInputComponent> {
     final amIFrozen = widget.amIFrozen(channel);
     final isDisabled = widget.isDisabled(channel);
 
+    String replyingToMessageText = '';
+    if (replyingToMessage != null) {
+      if (replyingToMessage is FileMessage) {
+        replyingToMessageText = replyingToMessage.name ?? '';
+      } else if (replyingToMessage is MultipleFilesMessage) {
+        if (replyingToMessage.files.isNotEmpty) {
+          final count = replyingToMessage.files.length;
+          replyingToMessageText = strings.photos(count.toString());
+        }
+      } else {
+        replyingToMessageText = replyingToMessage.message;
+      }
+    }
+
     final sender = Container(
       color: backgroundColor,
       child: Material(
@@ -123,13 +138,20 @@ class SBUMessageInputComponentState extends State<SBUMessageInputComponent> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      if (replyingToMessage.messageType == MessageType.file)
+                      if (replyingToMessage is FileMessage ||
+                          replyingToMessage is MultipleFilesMessage)
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
-                          child: SBUFileMessageIconComponent(
-                            iconSize: 32,
-                            fileMessage: replyingToMessage as FileMessage,
-                          ),
+                          child: (replyingToMessage is FileMessage)
+                              ? SBUFileMessageIconComponent(
+                                  iconSize: 32,
+                                  fileMessage: replyingToMessage,
+                                )
+                              : SBUMultipleFilesMessageIconComponent(
+                                  iconSize: 32,
+                                  multipleFilesMessage:
+                                      replyingToMessage as MultipleFilesMessage,
+                                ),
                         ),
                       Expanded(
                         child: Column(
@@ -143,9 +165,7 @@ class SBUMessageInputComponentState extends State<SBUMessageInputComponent> {
                             ),
                             const SizedBox(height: 8),
                             SBUTextComponent(
-                              text: (replyingToMessage is FileMessage)
-                                  ? replyingToMessage.name ?? ''
-                                  : replyingToMessage.message,
+                              text: replyingToMessageText,
                               textType: SBUTextType.caption2,
                               textColorType: SBUTextColorType.text03,
                             ),
@@ -229,6 +249,8 @@ class SBUMessageInputComponentState extends State<SBUMessageInputComponent> {
                                                 SBUIcons.photo,
                                               if (widget.canChooseDocument())
                                                 SBUIcons.document,
+                                              if (widget.canChooseFiles())
+                                                SBUIcons.document,
                                             ],
                                             buttonNames: [
                                               if (widget.canTakePhoto())
@@ -239,100 +261,19 @@ class SBUMessageInputComponentState extends State<SBUMessageInputComponent> {
                                                 strings.gallery,
                                               if (widget.canChooseDocument())
                                                 strings.document,
+                                              if (widget.canChooseFiles())
+                                                strings.files,
                                             ],
                                             onButtonClicked:
                                                 (buttonName) async {
-                                              FileInfo? fileInfo;
-                                              if (buttonName ==
-                                                  strings.takePhoto) {
-                                                fileInfo = await SendbirdUIKit()
-                                                    .takePhoto!();
-                                              } else if (buttonName ==
-                                                  strings.takeVideo) {
-                                                fileInfo = await SendbirdUIKit()
-                                                    .takeVideo!();
-                                              } else if (buttonName ==
-                                                  strings.gallery) {
-                                                fileInfo = await SendbirdUIKit()
-                                                    .chooseMedia!();
-                                              } else if (buttonName ==
-                                                  strings.document) {
-                                                fileInfo = await SendbirdUIKit()
-                                                    .chooseDocument!();
-                                              }
-
-                                              if (fileInfo != null) {
-                                                try {
-                                                  if (kIsWeb) {
-                                                    if (fileInfo.fileBytes !=
-                                                        null) {
-                                                      channel.sendFileMessage(
-                                                        FileMessageCreateParams
-                                                            .withFileBytes(
-                                                          fileInfo.fileBytes!,
-                                                          fileName:
-                                                              fileInfo.fileName,
-                                                          replyToChannel:
-                                                              (replyingToMessage !=
-                                                                  null),
-                                                          parentMessageId:
-                                                              replyingToMessage
-                                                                  ?.messageId,
-                                                        )..thumbnailSizes = [
-                                                            widget
-                                                                .getThumbnailSize()
-                                                          ],
-                                                      );
-                                                    }
-                                                  } else {
-                                                    if (fileInfo.file != null) {
-                                                      channel.sendFileMessage(
-                                                        FileMessageCreateParams
-                                                            .withFile(
-                                                          fileInfo.file!,
-                                                          fileName:
-                                                              fileInfo.fileName,
-                                                          replyToChannel:
-                                                              (replyingToMessage !=
-                                                                  null),
-                                                          parentMessageId:
-                                                              replyingToMessage
-                                                                  ?.messageId,
-                                                        )..thumbnailSizes = [
-                                                            widget
-                                                                .getThumbnailSize()
-                                                          ],
-                                                      );
-                                                    }
-                                                  }
-                                                } catch (e) {
-                                                  if (e
-                                                      is FileSizeLimitExceededException) {
-                                                    final uploadSizeLimit =
-                                                        SendbirdChat
-                                                                .getAppInfo()
-                                                            ?.uploadSizeLimit;
-                                                    if (uploadSizeLimit !=
-                                                        null) {
-                                                      widget.showToast(
-                                                        isLightTheme:
-                                                            isLightTheme,
-                                                        text: strings
-                                                            .theMaximumSizePerFileIsMB(
-                                                                uploadSizeLimit
-                                                                    .toString()),
-                                                        isError: true,
-                                                      );
-                                                    }
-                                                  } else {
-                                                    // TODO: Check error
-                                                  }
-                                                } finally {
-                                                  SBUMessageCollectionProvider()
-                                                      .resetMessageInputMode(widget
-                                                          .messageCollectionNo);
-                                                }
-                                              }
+                                              await _menuButtonClicked(
+                                                isLightTheme: isLightTheme,
+                                                strings: strings,
+                                                channel: channel,
+                                                buttonName: buttonName,
+                                                replyingToMessage:
+                                                    replyingToMessage,
+                                              );
                                             },
                                           );
                                         },
@@ -534,5 +475,130 @@ class SBUMessageInputComponentState extends State<SBUMessageInputComponent> {
     );
 
     return sender;
+  }
+
+  Future<void> _menuButtonClicked({
+    required bool isLightTheme,
+    required SBUStrings strings,
+    required GroupChannel channel,
+    required String buttonName,
+    BaseMessage? replyingToMessage,
+  }) async {
+    FileInfo? fileInfo;
+    List<FileInfo>? fileInfoList;
+
+    if (buttonName == strings.takePhoto) {
+      fileInfo = await SendbirdUIKit().takePhoto!();
+    } else if (buttonName == strings.takeVideo) {
+      fileInfo = await SendbirdUIKit().takeVideo!();
+    } else if (buttonName == strings.gallery) {
+      fileInfo = await SendbirdUIKit().chooseMedia!();
+    } else if (buttonName == strings.document) {
+      fileInfo = await SendbirdUIKit().chooseDocument!();
+    } else if (buttonName == strings.files) {
+      fileInfoList = await SendbirdUIKit().chooseFiles!();
+      if (fileInfoList.length == 1) {
+        fileInfo = fileInfoList[0];
+      }
+    }
+
+    if (fileInfo != null) {
+      try {
+        widget.sendFileMessage(
+          channel: channel,
+          fileInfo: fileInfo,
+          replyingToMessage: replyingToMessage,
+          thumbnailSizes: [widget.getThumbnailSize()],
+        );
+      } catch (e) {
+        if (e is FileSizeLimitExceededException) {
+          final uploadSizeLimit = SendbirdChat.getAppInfo()?.uploadSizeLimit;
+          if (uploadSizeLimit != null) {
+            widget.showToast(
+              isLightTheme: isLightTheme,
+              text:
+                  strings.theMaximumSizePerFileIsMB(uploadSizeLimit.toString()),
+              isError: true,
+            );
+          }
+        } else {
+          // TODO: Check error
+        }
+      } finally {
+        SBUMessageCollectionProvider()
+            .resetMessageInputMode(widget.messageCollectionNo);
+      }
+    } else if (fileInfoList != null && fileInfoList.isNotEmpty) {
+      List<UploadableFileInfo> uploadableFileInfoList = [];
+
+      for (FileInfo fileInfo in fileInfoList) {
+        if (kIsWeb) {
+          if (fileInfo.fileBytes != null) {
+            final uploadableFileInfo = UploadableFileInfo.fromFileBytes(
+              fileBytes: fileInfo.fileBytes!,
+              fileName: fileInfo.fileName,
+            )..thumbnailSizes = [widget.getThumbnailSize()];
+            uploadableFileInfoList.add(uploadableFileInfo);
+          }
+        } else {
+          if (fileInfo.file != null) {
+            final uploadableFileInfo = UploadableFileInfo.fromFile(
+              file: fileInfo.file!,
+              fileName: fileInfo.fileName,
+            )..thumbnailSizes = [widget.getThumbnailSize()];
+            uploadableFileInfoList.add(uploadableFileInfo);
+          }
+        }
+      }
+
+      if (uploadableFileInfoList.isNotEmpty) {
+        runZonedGuarded(() {
+          widget.sendMultipleFilesMessage(
+            channel: channel,
+            params: MultipleFilesMessageCreateParams(uploadableFileInfoList)
+              ..replyToChannel = (replyingToMessage != null)
+              ..parentMessageId = replyingToMessage?.messageId,
+            fileUploadHandler: (requestId, index, uploadableFileInfo, error) {
+              if (error == null) {
+                SBUMessageCollectionProvider().notifyFileUploadCompleted(
+                  widget.messageCollectionNo,
+                  requestId,
+                  index,
+                );
+              }
+            },
+            replyingToMessage: replyingToMessage,
+          );
+        }, (e, s) {
+          if (e is FileSizeLimitExceededException) {
+            final uploadSizeLimit = SendbirdChat.getAppInfo()?.uploadSizeLimit;
+            if (uploadSizeLimit != null) {
+              widget.showToast(
+                isLightTheme: isLightTheme,
+                text: strings
+                    .theMaximumSizePerFileIsMB(uploadSizeLimit.toString()),
+                isError: true,
+              );
+            }
+          } else if (e is InvalidParameterException) {
+            final fileCountLimit =
+                SendbirdChat.getAppInfo()?.multipleFilesMessageFileCountLimit;
+            if (fileCountLimit != null &&
+                (fileInfoList?.length ?? 0) > fileCountLimit) {
+              widget.showToast(
+                isLightTheme: isLightTheme,
+                text: strings.upToFilesCanBeAttached(fileCountLimit.toString()),
+                isError: true,
+              );
+            }
+          } else {
+            // TODO: Check error
+          }
+        });
+      }
+
+      SBUMessageCollectionProvider()
+          .resetMessageInputMode(widget.messageCollectionNo);
+    }
   }
 }

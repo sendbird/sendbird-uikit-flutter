@@ -12,6 +12,7 @@ import 'package:sendbird_uikit/src/internal/provider/sbu_group_channel_collectio
 import 'package:sendbird_uikit/src/internal/provider/sbu_message_collection_provider.dart';
 import 'package:sendbird_uikit/src/internal/resource/sbu_text_styles.dart';
 import 'package:sendbird_uikit/src/internal/utils/sbu_configuration_manager.dart';
+import 'package:sendbird_uikit/src/internal/utils/sbu_file_send_queue_manager.dart';
 import 'package:sendbird_uikit/src/internal/utils/sbu_mark_as_unread_manager.dart';
 import 'package:sendbird_uikit/src/internal/utils/sbu_ogtag_manager.dart';
 import 'package:sendbird_uikit/src/internal/utils/sbu_preferences.dart';
@@ -21,7 +22,7 @@ import 'package:sendbird_uikit/src/internal/utils/sbu_reply_manager.dart';
 /// SendbirdUIKit
 class SendbirdUIKit {
   /// UIKit version
-  static const version = '1.2.1';
+  static const version = '1.3.0';
 
   SendbirdUIKit._();
 
@@ -55,6 +56,10 @@ class SendbirdUIKit {
   Future<FileInfo?> Function()? _chooseDocument;
 
   Future<FileInfo?> Function()? get chooseDocument => _chooseDocument;
+
+  Future<List<FileInfo>> Function()? _chooseFiles;
+
+  Future<List<FileInfo>> Function()? get chooseFiles => _chooseFiles;
 
   Future<void> Function(
     String fileUrl,
@@ -111,6 +116,7 @@ class SendbirdUIKit {
     Future<FileInfo?> Function()? choosePhoto,
     Future<FileInfo?> Function()? chooseMedia,
     Future<FileInfo?> Function()? chooseDocument,
+    Future<List<FileInfo>> Function()? chooseFiles,
     Future<void> Function(
       String fileUrl,
       String? fileName,
@@ -145,6 +151,7 @@ class SendbirdUIKit {
     _uikit._choosePhoto = choosePhoto;
     _uikit._chooseMedia = chooseMedia;
     _uikit._chooseDocument = chooseDocument;
+    _uikit._chooseFiles = chooseFiles;
     _uikit._downloadFile = downloadFile;
 
     SBUReactionManager().useReaction = useReaction;
@@ -193,6 +200,7 @@ class SendbirdUIKit {
     try {
       await SendbirdChat.disconnect();
       await SBUPreferences().clear();
+      SBUFileSendQueueManager().clearAllQueues();
     } catch (_) {
       result = false;
     }
