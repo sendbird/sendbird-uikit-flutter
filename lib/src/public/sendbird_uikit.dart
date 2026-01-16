@@ -18,11 +18,12 @@ import 'package:sendbird_uikit/src/internal/utils/sbu_ogtag_manager.dart';
 import 'package:sendbird_uikit/src/internal/utils/sbu_preferences.dart';
 import 'package:sendbird_uikit/src/internal/utils/sbu_reaction_manager.dart';
 import 'package:sendbird_uikit/src/internal/utils/sbu_reply_manager.dart';
+import 'package:sendbird_uikit/src/internal/utils/sbu_typing_indicator_manager.dart';
 
 /// SendbirdUIKit
 class SendbirdUIKit {
   /// UIKit version
-  static const version = '1.3.0';
+  static const version = '1.4.0';
 
   SendbirdUIKit._();
 
@@ -126,6 +127,16 @@ class SendbirdUIKit {
     bool useOGTag = true,
     SBUReplyType replyType = SBUReplyType.quoteReply,
     bool? useMarkAsUnread,
+
+    /// Whether to display typing indicators in the channel list (e.g., on each channel row).
+    bool? useChannelListTypingIndicator,
+
+    /// Whether to display typing indicators in the channel view for the active conversation.
+    bool? useChannelTypingIndicator,
+
+    /// The display style for typing indicators in the channel view (for example, text vs bubble).
+    /// The default value is [SBUTypingIndicatorType.text].
+    SBUTypingIndicatorType? channelTypingIndicatorType,
   }) async {
     SendbirdChat.addExtension('sb_uikit', version);
 
@@ -158,6 +169,12 @@ class SendbirdUIKit {
     SBUOGTagManager().useOGTag = useOGTag;
     SBUReplyManager().replyType = replyType;
     SBUMarkAsUnreadManager().useMarkAsUnread = useMarkAsUnread;
+    SBUTypingIndicatorManager().useChannelListTypingIndicator =
+        useChannelListTypingIndicator;
+    SBUTypingIndicatorManager().useChannelTypingIndicator =
+        useChannelTypingIndicator;
+    SBUTypingIndicatorManager().channelTypingIndicatorType =
+        channelTypingIndicatorType;
 
     _uikit._isInitialized = true;
     return true;

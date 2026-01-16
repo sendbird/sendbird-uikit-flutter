@@ -618,3 +618,9 @@ extension MultipleFilesUploadTracking on SBUMessageCollectionProvider {
     _uploadedFileIndicesMap.remove(key);
   }
 }
+
+extension TypingIndicatorBubbleTracking on SBUMessageCollectionProvider {
+  void notifyTypingIndicatorBubble(GroupChannel channel) {
+    _refresh(channel.channelUrl);
+  }
+}

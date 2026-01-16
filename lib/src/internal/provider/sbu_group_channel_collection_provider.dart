@@ -2,6 +2,8 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:sendbird_chat_sdk/sendbird_chat_sdk.dart';
+import 'package:sendbird_uikit/src/internal/provider/sbu_message_collection_provider.dart';
+import 'package:sendbird_uikit/src/internal/utils/sbu_typing_indicator_manager.dart';
 
 class SBUGroupChannelCollectionProvider with ChangeNotifier {
   static int currentCollectionNo = 1;
@@ -42,6 +44,17 @@ class SBUGroupChannelCollectionProvider with ChangeNotifier {
   void _refresh() {
     notifyListeners();
   }
+
+  void _channelUpdated(
+      GroupChannelContext context, List<GroupChannel> channels) {
+    if (SBUTypingIndicatorManager().isChannelTypingIndicatorOn()) {
+      if (context.collectionEventSource ==
+              CollectionEventSource.eventTypingStatusUpdated &&
+          channels.isNotEmpty) {
+        SBUMessageCollectionProvider().notifyTypingIndicatorBubble(channels[0]);
+      }
+    }
+  }
 }
 
 class _MyGroupChannelCollectionHandler extends GroupChannelCollectionHandler {
@@ -58,6 +71,7 @@ class _MyGroupChannelCollectionHandler extends GroupChannelCollectionHandler {
   @override
   void onChannelsUpdated(
       GroupChannelContext context, List<GroupChannel> channels) {
+    _provider._channelUpdated(context, channels);
     _provider._refresh();
   }
 

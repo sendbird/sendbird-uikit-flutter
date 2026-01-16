@@ -57,7 +57,8 @@ class SBUHeaderComponentState extends State<SBUHeaderComponent> {
     final iconButton = widget.iconButton;
 
     final typingStatus = widget.channelForTypingStatus != null
-        ? widget.getTypingStatus(widget.channelForTypingStatus!, strings)
+        ? widget.getChannelTypingStatusText(
+            widget.channelForTypingStatus!, strings)
         : null;
 
     final header = GestureDetector(

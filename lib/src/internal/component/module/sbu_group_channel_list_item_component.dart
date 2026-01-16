@@ -89,7 +89,7 @@ class SBUGroupChannelListItemComponentState
     }
 
     final lastMessage = SBUTextComponent(
-      text: widget.getTypingStatus(channel, strings) ?? text,
+      text: widget.getChannelListTypingStatusText(channel, strings) ?? text,
       textType: SBUTextType.body3,
       textColorType: SBUTextColorType.text03,
       textOverflowType: (channel.lastMessage is FileMessage ||
