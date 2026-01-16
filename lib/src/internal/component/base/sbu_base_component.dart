@@ -4,16 +4,18 @@ import 'dart:async';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:sendbird_chat_sdk/sendbird_chat_sdk.dart';
 import 'package:sendbird_uikit/sendbird_uikit.dart';
 import 'package:sendbird_uikit/src/internal/component/basic/sbu_avatar_component.dart';
 import 'package:sendbird_uikit/src/internal/component/basic/sbu_icon_component.dart';
 import 'package:sendbird_uikit/src/internal/component/basic/sbu_text_component.dart';
+import 'package:sendbird_uikit/src/internal/component/basic/sbu_typing_indicator_bubble_component.dart';
 import 'package:sendbird_uikit/src/internal/resource/sbu_text_styles.dart';
 import 'package:sendbird_uikit/src/internal/utils/sbu_file_send_queue_manager.dart';
+import 'package:sendbird_uikit/src/internal/utils/sbu_typing_indicator_manager.dart';
 
 abstract class SBUStatefulComponent extends StatefulWidget
     with SBUBaseComponent {
@@ -197,7 +199,25 @@ mixin SBUBaseComponent {
     );
   }
 
-  String? getTypingStatus(GroupChannel channel, SBUStrings strings) {
+  String? getChannelListTypingStatusText(
+      GroupChannel channel, SBUStrings strings) {
+    final isOn = SBUTypingIndicatorManager().isChannelListTypingIndicatorOn();
+    if (isOn) {
+      return _getTypingStatusText(channel, strings);
+    }
+    return null;
+  }
+
+  String? getChannelTypingStatusText(GroupChannel channel, SBUStrings strings) {
+    final isOn = SBUTypingIndicatorManager().isChannelTypingIndicatorOn();
+    final type = SBUTypingIndicatorManager().getChannelTypingIndicatorType();
+    if (isOn && type == SBUTypingIndicatorType.text) {
+      return _getTypingStatusText(channel, strings);
+    }
+    return null;
+  }
+
+  String? _getTypingStatusText(GroupChannel channel, SBUStrings strings) {
     final typingUsers = channel.getTypingUsers();
     final count = typingUsers.length;
 
@@ -212,6 +232,26 @@ mixin SBUBaseComponent {
       return strings.severalPeopleAreTyping;
     }
     return null;
+  }
+
+  bool hasTypingStatusBubble(GroupChannel channel) {
+    if (SBUTypingIndicatorManager().isChannelTypingIndicatorOn() &&
+        SBUTypingIndicatorManager().channelTypingIndicatorType ==
+            SBUTypingIndicatorType.bubble) {
+      final typingUsers = channel.getTypingUsers();
+      if (typingUsers.isNotEmpty) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Widget getTypingStatusBubble(GroupChannel channel) {
+    final typingUsers = channel.getTypingUsers();
+    if (typingUsers.isNotEmpty) {
+      return SBUTypingIndicatorBubbleComponent(typingUsers: typingUsers);
+    }
+    return const SizedBox.shrink();
   }
 
   SBUIconComponent? getReadStatusIcon(

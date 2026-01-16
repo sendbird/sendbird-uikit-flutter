@@ -12,6 +12,10 @@ class SBUConfigurationManager {
 
   static String enableMarkAsUnreadKey =
       'group_channel-channel-enable_mark_as_unread';
+  static String enableChannelListTypingIndicatorKey =
+      'group_channel-channel_list-enable_typing_indicator';
+  static String enableChannelTypingIndicatorKey =
+      'group_channel-channel-enable_typing_indicator';
 
   Future<void> checkConfiguration() async {
     final cachedLastUpdatedAt =
@@ -28,9 +32,24 @@ class SBUConfigurationManager {
           // TODO: Other configurations can be added here as needed
           bool? enableMarkAsUnread = uikitConfiguration['configuration']
               ['group_channel']['channel']['enable_mark_as_unread'];
-
           if (enableMarkAsUnread != null) {
             configurations[enableMarkAsUnreadKey] = enableMarkAsUnread;
+          }
+
+          bool? enableChannelListTypingIndicator =
+              uikitConfiguration['configuration']['group_channel']
+                  ['channel_list']['enable_typing_indicator'];
+          if (enableChannelListTypingIndicator != null) {
+            configurations[enableChannelListTypingIndicatorKey] =
+                enableChannelListTypingIndicator;
+          }
+
+          bool? enableChannelTypingIndicator =
+              uikitConfiguration['configuration']['group_channel']['channel']
+                  ['enable_typing_indicator'];
+          if (enableChannelTypingIndicator != null) {
+            configurations[enableChannelTypingIndicatorKey] =
+                enableChannelTypingIndicator;
           }
 
           final configurationCaches =
@@ -47,5 +66,15 @@ class SBUConfigurationManager {
 
   bool? isMarkAsUnreadEnabledOnDashboard() {
     return SBUPreferences().getConfigurationCache(enableMarkAsUnreadKey);
+  }
+
+  bool? isChannelListTypingIndicatorEnabledOnDashboard() {
+    return SBUPreferences()
+        .getConfigurationCache(enableChannelListTypingIndicatorKey);
+  }
+
+  bool? isChannelTypingIndicatorEnabledOnDashboard() {
+    return SBUPreferences()
+        .getConfigurationCache(enableChannelTypingIndicatorKey);
   }
 }

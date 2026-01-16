@@ -397,6 +397,9 @@ class SBUGroupChannelScreenState extends State<SBUGroupChannelScreen>
           )
         : null;
 
+    final isTypingStatusBubble = (collection != null)
+        ? widget.hasTypingStatusBubble(collection.channel)
+        : false;
     final list = collection != null && collection.messageList.isNotEmpty
         ? NotificationListener<UserScrollNotification>(
             onNotification: (notification) {
@@ -416,7 +419,9 @@ class SBUGroupChannelScreenState extends State<SBUGroupChannelScreen>
                 controller: scrollController,
                 reverse: true,
                 shrinkWrap: false,
-                itemCount: collection.messageList.length,
+                itemCount: isTypingStatusBubble
+                    ? collection.messageList.length + 1
+                    : collection.messageList.length,
                 cacheExtent: widget.cacheExtent,
                 itemBuilder: (context, index) {
                   Widget listItem = AutoScrollTag(
@@ -427,6 +432,7 @@ class SBUGroupChannelScreenState extends State<SBUGroupChannelScreen>
                       messageCollectionNo: collectionNo!,
                       messageList: collection.messageList,
                       messageIndex: index,
+                      isTypingStatusBubble: isTypingStatusBubble,
                       on1On1ChannelCreated: widget.on1On1ChannelCreated,
                       onListItemClicked: widget.onListItemClicked,
                       onListItemWithIndexClicked:
@@ -466,9 +472,11 @@ class SBUGroupChannelScreenState extends State<SBUGroupChannelScreen>
                           isClickedParentMessageAnimating = false;
                         }
                       },
-                      key: Key(widget.getMessageCacheKey(
-                              collection.messageList[index]) ??
-                          ''),
+                      key: Key(_getKeyString(
+                        collection,
+                        index,
+                        isTypingStatusBubble,
+                      )),
                     ),
                   );
 
@@ -854,6 +862,29 @@ class SBUGroupChannelScreenState extends State<SBUGroupChannelScreen>
           ],
         ),
     ]);
+  }
+
+  String _getKeyString(
+    MessageCollection collection,
+    int index,
+    bool isTypingStatusBubble,
+  ) {
+    String keyString = '';
+    if (isTypingStatusBubble) {
+      if (index == 0) {
+        // Use a stable, non-empty key for the typing indicator bubble.
+        keyString = 'typing_indicator_bubble';
+      } else if (index > 0 && (index - 1 < collection.messageList.length)) {
+        keyString =
+            widget.getMessageCacheKey(collection.messageList[index - 1]) ?? '';
+      }
+    } else {
+      if (index < collection.messageList.length) {
+        keyString =
+            widget.getMessageCacheKey(collection.messageList[index]) ?? '';
+      }
+    }
+    return keyString;
   }
 
   Future<void> _scrollToBottom(MessageCollection collection) async {

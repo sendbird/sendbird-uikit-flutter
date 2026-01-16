@@ -1,3 +1,8 @@
+## v1.4.0 (Jan 16, 2026)
+
+### Features
+- Added `useChannelListTypingIndicator`, `useChannelTypingIndicator` and `channelTypingIndicatorType` parameters in `SendbirdUIKit.init()`
+
 ## v1.3.0 (Jan 2, 2026)
 
 ### Features

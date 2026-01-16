@@ -28,6 +28,7 @@ class SBUMessageListItemComponent extends SBUStatefulComponent {
   final int messageCollectionNo;
   final List<BaseMessage> messageList;
   final int messageIndex;
+  final bool isTypingStatusBubble;
   final void Function(GroupChannel)? on1On1ChannelCreated;
   final void Function(GroupChannel, BaseMessage)? onListItemClicked;
   final void Function(GroupChannel, BaseMessage, int index)?
@@ -38,6 +39,7 @@ class SBUMessageListItemComponent extends SBUStatefulComponent {
     required this.messageCollectionNo,
     required this.messageList,
     required this.messageIndex,
+    required this.isTypingStatusBubble,
     this.on1On1ChannelCreated,
     this.onListItemClicked,
     this.onListItemWithIndexClicked,
@@ -67,7 +69,13 @@ class SBUMessageListItemComponentState
         collectionProvider.getCollection(widget.messageCollectionNo)!; // Check
 
     final messageList = widget.messageList;
-    final messageIndex = widget.messageIndex;
+    int messageIndex = widget.messageIndex;
+
+    if (widget.isTypingStatusBubble) messageIndex -= 1;
+    if (messageIndex == -1) {
+      return widget.getTypingStatusBubble(collection.channel);
+    }
+
     final message = messageList[messageIndex];
 
     final isSameDayAtPreviousMessage =
