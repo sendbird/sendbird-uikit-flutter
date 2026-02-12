@@ -1,3 +1,8 @@
+## v1.4.1 (Feb 12, 2026)
+
+### Improvements
+- Fixed bugs regarding message huge gap
+
 ## v1.4.0 (Jan 16, 2026)
 
 ### Features
