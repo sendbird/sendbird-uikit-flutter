@@ -174,6 +174,24 @@ class SBUGroupChannelScreenState extends State<SBUGroupChannelScreen>
     }
   }
 
+  void _restart() {
+    // Remove old collection
+    if (collectionNo != null) {
+      SBUMessageCollectionProvider().remove(collectionNo!);
+      collectionNo = null;
+    }
+
+    // Reset state
+    if (mounted) {
+      setState(() {
+        isLoading = true;
+      });
+    }
+
+    // Reinitialize
+    _init();
+  }
+
   bool _isNewLineExistsInChannel(MessageCollection collection) {
     return collection.channel.myLastRead <
         (collection.channel.lastMessage?.createdAt ?? 0);
@@ -295,6 +313,14 @@ class SBUGroupChannelScreenState extends State<SBUGroupChannelScreen>
     final strings = context.watch<SBUStringProvider>().strings;
 
     final collectionProvider = context.watch<SBUMessageCollectionProvider>();
+
+    // Check if channel needs restart (e.g., due to huge gap detected)
+    if (collectionProvider.needsRestart(widget.channelUrl)) {
+      collectionProvider.clearNeedsRestart(widget.channelUrl);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _restart();
+      });
+    }
 
     if (isError) {
       if (widget.customErrorScreen != null) {

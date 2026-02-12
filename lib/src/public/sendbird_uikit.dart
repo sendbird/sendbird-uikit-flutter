@@ -23,7 +23,7 @@ import 'package:sendbird_uikit/src/internal/utils/sbu_typing_indicator_manager.d
 /// SendbirdUIKit
 class SendbirdUIKit {
   /// UIKit version
-  static const version = '1.4.0';
+  static const version = '1.4.1';
 
   SendbirdUIKit._();
 

@@ -15,6 +15,7 @@ class SBUMessageCollectionProvider with ChangeNotifier {
   final Map<int, BaseMessage?> _editingMessageMap = {};
   final Map<int, BaseMessage?> _replyingToMessageMap = {};
   final Map<int, bool?> _deletedChannelMap = {};
+  final Set<String> _needsRestartChannelUrlSet = {};
 
   final Map<String, bool> _isBottomOfScreenMap = {};
   final Map<String, bool> _didMarkAsUnreadMap = {};
@@ -80,13 +81,16 @@ class SBUMessageCollectionProvider with ChangeNotifier {
   }
 
   void _restart(String channelUrl) {
-    for (final collectionNo in _getCollectionNoList(channelUrl)) {
-      final collection = _collectionMap[collectionNo];
-      if (collection != null) {
-        remove(collectionNo);
-        add(channel: collection.channel, params: collection.params);
-      }
-    }
+    _needsRestartChannelUrlSet.add(channelUrl);
+    _refresh();
+  }
+
+  bool needsRestart(String channelUrl) {
+    return _needsRestartChannelUrlSet.contains(channelUrl);
+  }
+
+  void clearNeedsRestart(String channelUrl) {
+    _needsRestartChannelUrlSet.remove(channelUrl);
   }
 
   List<int> _getCollectionNoList(String channelUrl) {
