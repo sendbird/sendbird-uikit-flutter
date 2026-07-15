@@ -307,8 +307,8 @@ class SBUTypingIndicatorBubbleComponentState
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: isLightTheme
-                              ? Colors.black.withValues(alpha: opacity)
-                              : Colors.white.withValues(alpha: opacity),
+                              ? Colors.black.withOpacity(opacity)
+                              : Colors.white.withOpacity(opacity),
                         ),
                       );
                     },

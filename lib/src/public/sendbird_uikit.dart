@@ -23,7 +23,7 @@ import 'package:sendbird_uikit/src/internal/utils/sbu_typing_indicator_manager.d
 /// SendbirdUIKit
 class SendbirdUIKit {
   /// UIKit version
-  static const version = '1.4.1';
+  static const version = '1.5.0';
 
   SendbirdUIKit._();
 
@@ -73,6 +73,11 @@ class SendbirdUIKit {
     String? fileName,
     void Function() downloadCompleted,
   )? get downloadFile => _downloadFile;
+
+  SBUCustomParamsHandler? _customParamsHandler;
+
+  /// The [SBUCustomParamsHandler] set via [setCustomParamsHandler], if any.
+  SBUCustomParamsHandler? get customParamsHandler => _customParamsHandler;
 
   /// Applies the providers for [SendbirdUIKit].
   static Widget provider({
@@ -244,6 +249,14 @@ class SendbirdUIKit {
   /// Sets fontFamily.
   static void setFontFamily(String fontFamily) {
     SBUTextStyles.fontFamily = fontFamily;
+  }
+
+  /// Sets the [SBUCustomParamsHandler] used to customize message params before
+  /// they are sent or updated.
+  ///
+  /// Pass `null` to remove a previously set handler.
+  static void setCustomParamsHandler(SBUCustomParamsHandler? handler) {
+    _uikit._customParamsHandler = handler;
   }
 
   // Shows the delayed connecting dialog with retryAfter time.
